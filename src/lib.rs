@@ -6,118 +6,141 @@ use std::fs::File;
 
 use xml::reader::{self, EventReader, XmlEvent};
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-struct Name {
-    #[serde(rename = "C")]
-    c: Option<String>,
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Data {
+    Type(Option<String>),
+    Id(Option<String>),
+    Package(Option<String>),
+    Name {
+        #[serde(rename = "C")]
+        c: Option<String>
+    },
+    Summary {
+        #[serde(rename = "C")]
+        c: Option<String>
+    },
+    Description {
+        #[serde(rename = "C")]
+        c: Option<String>
+    },
+    DeveloperName {
+        #[serde(rename = "C")]
+        c: Option<String>
+    },
+    Screenshots(Vec<Screenshot>),
+    Url {
+        homepage: Option<String>,
+        bugtracker: Option<String>,
+    },
+    Icon {
+        cached: Vec<InnerIcon>,
+    },
+    Provides {
+        mimetypes: Vec<String>,
+        binaries: Vec<String>,
+    },
+    ProjectLicense(Option<String>),
+    Categories(Vec<String>),
+    Keywords(Vec<String>),
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-struct Summary {
-    #[serde(rename = "C")]
-    c: Option<String>,
-}
+impl Data {
+    pub fn push_new_screenshoot(&mut self, thumbnails: Vec<String>, url: Option<String>, lang: Option<String>) {
+        if let Data::Screenshots(ref mut vec) = self {
+            let screenshot = Screenshot {
+                thumbnails,
+                source_image: SourceImage {
+                    url,
+                    lang,
+                },
+            };
+            vec.push(screenshot);
+        }
+    }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-struct Description {
-    #[serde(rename = "C")]
-    c: Option<String>,
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-struct DeveloperName {
-    #[serde(rename = "C")]
-    c: Option<String>,
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-struct SourceImage {
-    url: Option<String>,
-    lang: Option<String>,
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-struct Screenshot {
-    thumbnails: Vec<String>,
-    #[serde(rename = "source-image")]
-    source_image: SourceImage,
-}
-
-impl Screenshot {
-    fn new(thumbnails: Vec<String>, url: Option<String>, lang: Option<String>) -> Self {
-        Screenshot {
-            thumbnails,
-            source_image: SourceImage {
-                url,
-                lang,
-            },
+    pub fn push_into_icon<S: Into<String>>(&mut self, name: S, width: Option<usize>, height: Option<usize>) {
+        if let Data::Icon { ref mut cached } = self {
+            cached.push(InnerIcon {name: name.into(), width, height});
         }
     }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Url {
-    homepage: Option<String>,
-    bugtracker: Option<String>,
+pub struct SourceImage {
+    url: Option<String>,
+    lang: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-struct InnerIcon {
+pub struct Screenshot {
+    thumbnails: Vec<String>,
+    #[serde(rename = "source-image")]
+    source_image: SourceImage,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct InnerIcon {
     name: String,
     width: Option<usize>,
     height: Option<usize>,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Icon {
-    cached: Vec<InnerIcon>,
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Dep11 {
+    #[serde(rename = "Type")]
+    kind: Data,
+    #[serde(rename = "ID")]
+    id: Data,
+    #[serde(rename = "Package")]
+    package: Data,
+    #[serde(rename = "Name")]
+    name: Data,
+    #[serde(rename = "Summary")]
+    summary: Data,
+    #[serde(rename = "Description")]
+    description: Data,
+    #[serde(rename = "DeveloperName")]
+    developer_name: Data,
+    #[serde(rename = "ProjectLicense")]
+    project_license: Data,
+    #[serde(rename = "Categories")]
+    categories: Data,
+    #[serde(rename = "Keywords")]
+    keywords: Data,
+    #[serde(rename = "Url")]
+    url: Data,
+    #[serde(rename = "Icon")]
+    icon: Data,
+    #[serde(rename = "Screenshots")]
+    screenshots: Data,
+    #[serde(rename = "Provides")]
+    provides: Data,
 }
 
-impl Icon {
-    fn push<S: Into<String>>(&mut self, name: S, width: Option<usize>, height: Option<usize>) {
-        self.cached.push(InnerIcon {name: name.into(), width, height});
+impl Default for Dep11 {
+    fn default() -> Self {
+        Dep11 {
+            kind: Data::Type(None),
+            id: Data::Id(None),
+            package: Data::Package(None),
+            name: Data::Name { c: None },
+            summary: Data::Summary { c: None },
+            description: Data::Description { c: None },
+            developer_name: Data::DeveloperName { c: None },
+            project_license: Data::ProjectLicense(None),
+            categories: Data::Categories(Vec::new()),
+            keywords: Data::Keywords(Vec::new()),
+            url: Data::Url { homepage: None, bugtracker: None, },
+            icon: Data::Icon { cached: Vec::new() },
+            screenshots: Data::Screenshots(Vec::new()),
+            provides: Data::Provides { mimetypes: Vec::new(), binaries: Vec::new(), },
+        }
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Provides {
-    mimetypes: Vec<String>,
-    binaries: Vec<String>,
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Dep11 {
-    #[serde(rename = "Type")]
-    kind: Option<String>,
-    #[serde(rename = "ID")]
-    id: Option<String>,
-    #[serde(rename = "Package")]
-    package: Option<String>,
-    #[serde(rename = "Name")]
-    name: Name,
-    #[serde(rename = "Summary")]
-    summary: Summary,
-    #[serde(rename = "Description")]
-    description: Description,
-    #[serde(rename = "DeveloperName")]
-    developer_name: DeveloperName,
-    #[serde(rename = "ProjectLicense")]
-    project_license: Option<String>,
-    #[serde(rename = "Categories")]
-    categories: Vec<String>,
-    #[serde(rename = "Keywords")]
-    keywords: Vec<String>,
-    #[serde(rename = "Url")]
-    url: Url,
-    #[serde(rename = "Icon")]
-    icon: Icon,
-    #[serde(rename = "Screenshots")]
-    screenshots: Vec<Screenshot>,
-    #[serde(rename = "Provides")]
-    provides: Provides,
-}
-
 impl Dep11 {
+    #[allow(clippy::cyclomatic_complexity)]
     pub fn new(path: &str) -> Self {
         let mut parser = EventReader::new(BufReader::new(File::open(path).unwrap())).into_iter();
         let mut dep11 = Dep11::default();
@@ -126,20 +149,26 @@ impl Dep11 {
             if let XmlEvent::StartElement { name, attributes, namespace } = event {
                 match &*name.local_name {
                     "component" => {
-                        dep11.kind = attributes
-                            .iter()
-                            .find(|attribute| attribute.name.local_name == "type")
-                            .map(|component| component.value.clone())
+                        if let Data::Type(ref mut kind) = dep11.kind {
+                            *kind = attributes
+                                .iter()
+                                .find(|attribute| attribute.name.local_name == "type")
+                                .map(|component| component.value.clone())
+                        }
                     }
                     "id" => {
-                        if let Some(Ok(XmlEvent::Characters(id))) = parser.next() {
-                            dep11.id = Some(id);
+                        if let Data::Id(ref mut dep11_id) = dep11.id {
+                            if let Some(Ok(XmlEvent::Characters(id))) = parser.next() {
+                                *dep11_id = Some(id);
+                            }
                         }
                     }
                     "summary" => {
                         if attributes.is_empty() {
-                            if let Some(Ok(XmlEvent::Characters(summary))) = parser.next() {
-                                dep11.summary.c = Some(summary)
+                            if let Data::Summary { ref mut c } = dep11.summary {
+                                if let Some(Ok(XmlEvent::Characters(summary))) = parser.next() {
+                                    *c = Some(summary)
+                                }
                             }
                         }
                     }
@@ -155,8 +184,10 @@ impl Dep11 {
                             if let XmlEvent::StartElement { name, attributes, .. } = event {
                                 if name.local_name == "p" && attributes.is_empty() {
                                     if let Some(Ok(XmlEvent::Characters(description))) = events.next() {
-                                        dep11.description.c = Some(description.trim().into());
-                                        break;
+                                        if let Data::Description { ref mut c } = dep11.description {
+                                            *c = Some(description.trim().into());
+                                            break;
+                                        }
                                     }
                                 }
                             }
@@ -164,19 +195,27 @@ impl Dep11 {
                     }
                     "project_license" => {
                         if let Some(Ok(XmlEvent::Characters(license))) = parser.next() {
-                            dep11.project_license = Some(license)
+                            if let Data::ProjectLicense(ref mut project_license) = dep11.project_license {
+                                *project_license = Some(license)
+                            }
                         }
                     }
                     "name" => {
                         if attributes.is_empty() {
                             if let Some(Ok(XmlEvent::Characters(name))) = parser.next() {
-                                dep11.name.c = Some(name)
+                                if let Data::Name { ref mut c } = dep11.name {
+                                    *c = Some(name)
+                                }
                             }
                         }
                     }
                     "url" => {
-                        dep11.url.homepage = namespace.get("homepage").map(|s| s.into());
-                        dep11.url.bugtracker = namespace.get("bugtracker").map(|s| s.into());
+                        let maybe_homepage = namespace.get("homepage").map(|s| s.into());
+                        let maybe_bugtracker = namespace.get("bugtracker").map(|s| s.into());
+                        if let Data::Url { ref mut homepage, ref mut bugtracker } = dep11.url {
+                            *homepage = maybe_homepage;
+                            *bugtracker = maybe_bugtracker;
+                        }
                     }
                     "screenshots" => {
                         let mut events = parser
@@ -187,40 +226,48 @@ impl Dep11 {
                                 true
                             });
 
-                        let mut screenshots = Vec::new();
                         while let Some(Ok(event)) = events.next() {
                             if let XmlEvent::StartElement { name, .. } = event {
                                 if name.local_name == "image" {
                                     if let Some(Ok(XmlEvent::Characters(screenshot))) = events.next() {
-                                        screenshots.push(Screenshot::new(Vec::new(), screenshot.into(), String::from("C").into()))
+                                        dep11.screenshots.push_new_screenshoot(Vec::new(), screenshot.into(), String::from("C").into());
                                     }
                                 }
                             }
                         }
-                        dep11.screenshots = screenshots;
                     }
                     "icon" => {
                         if let Some(Ok(XmlEvent::Characters(mut icon))) = parser.next() {
                             icon.push_str(".png");
-                            dep11.icon.push(icon, None, None);
+                            dep11.icon.push_into_icon(icon, None, None);
                         }
                     }
                     "developer_name" => {
                         if let Some(Ok(XmlEvent::Characters(developer_name))) = parser.next() {
-                            dep11.developer_name.c = Some(developer_name)
+                            if let Data::DeveloperName { ref mut c } = dep11.developer_name {
+                                *c = Some(developer_name)
+                            }
                         }
                     }
                     "keywords" => {
-                        collect_data_to(&mut dep11.keywords, "keywords", "keyword", &mut parser);
+                        if let Data::Keywords(ref mut keywords) = dep11.keywords {
+                            collect_data_to(keywords, "keywords", "keyword", &mut parser);
+                        }
                     }
                     "provides" => {
-                        collect_data_to(&mut dep11.provides.binaries, "provides", "binary", &mut parser);
+                        if let Data::Provides { ref mut binaries, .. } = dep11.provides {
+                            collect_data_to(binaries, "provides", "binary", &mut parser);
+                        }
                     }
                     "mimetypes" => {
-                        collect_data_to(&mut dep11.provides.mimetypes, "mimetypes", "mimetype", &mut parser);
+                        if let Data::Provides { ref mut mimetypes, .. } = dep11.provides {
+                            collect_data_to(mimetypes, "mimetypes", "mimetype", &mut parser);
+                        }
                     }
                     "categories" => {
-                        collect_data_to(&mut dep11.categories, "categories", "category", &mut parser);
+                        if let Data::Categories(ref mut categories) = dep11.keywords {
+                            collect_data_to(categories, "categories", "category", &mut parser);
+                        }
                     }
                     _ => (),
                 }
@@ -232,6 +279,72 @@ impl Dep11 {
     pub fn to_string(&self) -> Result<String, String> {
         serde_yaml::to_string(self)
             .map_err(|why| format!("{}", why))
+    }
+
+    pub fn checked_for_completion<F: FnMut(&str, &mut Data)>(&mut self, mut callback: F) -> bool {
+        if let Data::Type(None) = self.kind {
+            callback("Please provide a `Type`.", &mut self.kind);
+            return false;
+        }
+        if let Data::Id(None) = self.id {
+            callback("Please provide an `Id`.", &mut self.id);
+            return false;
+        }
+        if let Data::Package(None) = self.package {
+            callback("Please provide a `Package`.", &mut self.package);
+            return false;
+        }
+        if let Data::Summary { c: None } = self.summary {
+            callback("Please provide a `Summary`.", &mut self.summary);
+            return false;
+        }
+        if let Data::Description { c: None } = self.description {
+            callback("Please provide a `Description`.", &mut self.description);
+            return false;
+        }
+        if let Data::DeveloperName { c: None } = self.developer_name {
+            callback("Please provide a `DeveloperName`.", &mut self.developer_name);
+            return false;
+        }
+        if let Data::Categories(ref vec) = self.categories {
+            if vec.is_empty() {
+                callback("Please provide `Categories`.", &mut self.categories);
+                return false;
+            }
+        }
+        if let Data::Keywords(ref vec) = self.keywords {
+            if vec.is_empty() {
+                callback("Please provide `Categories`.", &mut self.keywords);
+                return false;
+            }
+        }
+        if let Data::Url { homepage: None, .. } = self.url {
+            callback("Please provide `homepage`.", &mut self.url);
+            return false;
+        }
+        if let Data::Icon { ref cached, .. } = self.icon {
+            if cached.is_empty() {
+                callback("Please provide `Icon`(s).", &mut self.icon);
+                return false;
+            }
+        }
+        if let Data::Screenshots(ref vec) = self.screenshots {
+            if vec.is_empty() {
+                callback("Please provide `Screenshots`.", &mut self.screenshots);
+                return false;
+            }
+        }
+        if let Data::Provides { ref mimetypes, ref binaries } = self.provides {
+            if mimetypes.is_empty() {
+                callback("Please provide `mimetypes`.", &mut self.provides);
+                return false;
+            }
+            if binaries.is_empty() {
+                callback("Please provide `binaries`.", &mut self.provides);
+                return false;
+            }
+        }
+        true
     }
 }
 
