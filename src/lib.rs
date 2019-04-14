@@ -281,70 +281,72 @@ impl Dep11 {
             .map_err(|why| format!("{}", why))
     }
 
-    pub fn checked_for_completion<F: FnMut(&str, &mut Data)>(&mut self, mut callback: F) -> bool {
-        if let Data::Type(None) = self.kind {
-            callback("Please provide a `Type`.", &mut self.kind);
-            return false;
-        }
-        if let Data::Id(None) = self.id {
-            callback("Please provide an `Id`.", &mut self.id);
-            return false;
-        }
-        if let Data::Package(None) = self.package {
-            callback("Please provide a `Package`.", &mut self.package);
-            return false;
-        }
-        if let Data::Summary { c: None } = self.summary {
-            callback("Please provide a `Summary`.", &mut self.summary);
-            return false;
-        }
-        if let Data::Description { c: None } = self.description {
-            callback("Please provide a `Description`.", &mut self.description);
-            return false;
-        }
-        if let Data::DeveloperName { c: None } = self.developer_name {
-            callback("Please provide a `DeveloperName`.", &mut self.developer_name);
-            return false;
-        }
-        if let Data::Categories(ref vec) = self.categories {
-            if vec.is_empty() {
-                callback("Please provide `Categories`.", &mut self.categories);
-                return false;
+    pub fn checked_for_completion<F: FnMut(&str, &mut Data)>(&mut self, mut callback: F) {
+        loop {
+            if let Data::Type(None) = self.kind {
+                callback("Please provide a `Type`.", &mut self.kind);
+                continue;
             }
-        }
-        if let Data::Keywords(ref vec) = self.keywords {
-            if vec.is_empty() {
-                callback("Please provide `Categories`.", &mut self.keywords);
-                return false;
+            if let Data::Id(None) = self.id {
+                callback("Please provide an `Id`.", &mut self.id);
+                continue;
             }
-        }
-        if let Data::Url { homepage: None, .. } = self.url {
-            callback("Please provide `homepage`.", &mut self.url);
-            return false;
-        }
-        if let Data::Icon { ref cached, .. } = self.icon {
-            if cached.is_empty() {
-                callback("Please provide `Icon`(s).", &mut self.icon);
-                return false;
+            if let Data::Package(None) = self.package {
+                callback("Please provide a `Package`.", &mut self.package);
+                continue;
             }
-        }
-        if let Data::Screenshots(ref vec) = self.screenshots {
-            if vec.is_empty() {
-                callback("Please provide `Screenshots`.", &mut self.screenshots);
-                return false;
+            if let Data::Summary { c: None } = self.summary {
+                callback("Please provide a `Summary`.", &mut self.summary);
+                continue;
             }
-        }
-        if let Data::Provides { ref mimetypes, ref binaries } = self.provides {
-            if mimetypes.is_empty() {
-                callback("Please provide `mimetypes`.", &mut self.provides);
-                return false;
+            if let Data::Description { c: None } = self.description {
+                callback("Please provide a `Description`.", &mut self.description);
+                continue;
             }
-            if binaries.is_empty() {
-                callback("Please provide `binaries`.", &mut self.provides);
-                return false;
+            if let Data::DeveloperName { c: None } = self.developer_name {
+                callback("Please provide a `DeveloperName`.", &mut self.developer_name);
+                continue;
             }
+            if let Data::Categories(ref vec) = self.categories {
+                if vec.is_empty() {
+                    callback("Please provide `Categories`.", &mut self.categories);
+                    continue;
+                }
+            }
+            if let Data::Keywords(ref vec) = self.keywords {
+                if vec.is_empty() {
+                    callback("Please provide `Categories`.", &mut self.keywords);
+                    continue;
+                }
+            }
+            if let Data::Url { homepage: None, .. } = self.url {
+                callback("Please provide `homepage`.", &mut self.url);
+                continue;
+            }
+            if let Data::Icon { ref cached, .. } = self.icon {
+                if cached.is_empty() {
+                    callback("Please provide `Icon`(s).", &mut self.icon);
+                    continue;
+                }
+            }
+            if let Data::Screenshots(ref vec) = self.screenshots {
+                if vec.is_empty() {
+                    callback("Please provide `Screenshots`.", &mut self.screenshots);
+                    continue;
+                }
+            }
+            if let Data::Provides { ref mimetypes, ref binaries } = self.provides {
+                if mimetypes.is_empty() {
+                    callback("Please provide `mimetypes`.", &mut self.provides);
+                    continue;
+                }
+                if binaries.is_empty() {
+                    callback("Please provide `binaries`.", &mut self.provides);
+                    continue;
+                }
+            }
+            break;
         }
-        true
     }
 }
 
