@@ -36,13 +36,11 @@ pub enum Data {
     Icon {
         cached: Vec<InnerIcon>,
     },
-    Provides {
-        mimetypes: Vec<String>,
-        binaries: Vec<String>,
-    },
     ProjectLicense(Option<String>),
     Categories(Vec<String>),
     Keywords(Vec<String>),
+    MimeTypes(Vec<String>),
+    Binaries(Vec<String>),
 }
 
 impl Data {
@@ -87,6 +85,12 @@ pub struct InnerIcon {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Provides {
+    mimetypes: Data,
+    binaries: Data,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Dep11 {
     #[serde(rename = "Type")]
     kind: Data,
@@ -115,7 +119,7 @@ pub struct Dep11 {
     #[serde(rename = "Screenshots")]
     screenshots: Data,
     #[serde(rename = "Provides")]
-    provides: Data,
+    provides: Provides,
 }
 
 impl Default for Dep11 {
@@ -134,7 +138,7 @@ impl Default for Dep11 {
             url: Data::Url { homepage: None, bugtracker: None, },
             icon: Data::Icon { cached: Vec::new() },
             screenshots: Data::Screenshots(Vec::new()),
-            provides: Data::Provides { mimetypes: Vec::new(), binaries: Vec::new(), },
+            provides: Provides { mimetypes: Data::MimeTypes(Vec::new()), binaries: Data::Binaries(Vec::new()), },
         }
     }
 }
@@ -255,12 +259,12 @@ impl Dep11 {
                         }
                     }
                     "provides" => {
-                        if let Data::Provides { ref mut binaries, .. } = dep11.provides {
+                        if let Provides { binaries: Data::Binaries(ref mut binaries), .. } = dep11.provides {
                             collect_data_to(binaries, "provides", "binary", &mut parser);
                         }
                     }
                     "mimetypes" => {
-                        if let Data::Provides { ref mut mimetypes, .. } = dep11.provides {
+                        if let Provides { mimetypes: Data::MimeTypes(ref mut mimetypes), .. } = dep11.provides {
                             collect_data_to(mimetypes, "mimetypes", "mimetype", &mut parser);
                         }
                     }
@@ -278,10 +282,14 @@ impl Dep11 {
 
     pub fn to_string(&self) -> Result<String, String> {
         serde_yaml::to_string(self)
+            .map(|mut string| {
+                string.push('\n');
+                string
+            })
             .map_err(|why| format!("{}", why))
     }
 
-    pub fn checked_for_completion<F: FnMut(&str, &mut Data)>(&mut self, mut callback: F) {
+    pub fn checked_for_completion<F: FnMut(&str, &mut Data) -> bool>(&mut self, mut callback: F) {
         loop {
             if let Data::Type(None) = self.kind {
                 callback("Please provide a `Type`.", &mut self.kind);
@@ -309,13 +317,19 @@ impl Dep11 {
             }
             if let Data::Categories(ref vec) = self.categories {
                 if vec.is_empty() {
-                    callback("Please provide `Categories`.", &mut self.categories);
+                    let mut not_finished = callback("Please provide a Category for `Categories`.", &mut self.categories);
+                    while not_finished {
+                       not_finished = callback("Provide another Category for `Categories`.", &mut self.categories);
+                    }
                     continue;
                 }
             }
             if let Data::Keywords(ref vec) = self.keywords {
                 if vec.is_empty() {
-                    callback("Please provide `Categories`.", &mut self.keywords);
+                    let mut not_finished = callback("Please provide a Keyword for `Keywords`.", &mut self.keywords);
+                    while not_finished {
+                        not_finished = callback("Provide another Keyword for `Keywords`.", &mut self.keywords);
+                    }
                     continue;
                 }
             }
@@ -325,23 +339,29 @@ impl Dep11 {
             }
             if let Data::Icon { ref cached, .. } = self.icon {
                 if cached.is_empty() {
-                    callback("Please provide `Icon`(s).", &mut self.icon);
+                    let mut not_finished = callback("Please provide a Icon for `Icons`.", &mut self.icon);
+                    while not_finished {
+                        not_finished = callback("Provide another Icon for `Icons`.", &mut self.icon);
+                    }
                     continue;
                 }
             }
             if let Data::Screenshots(ref vec) = self.screenshots {
                 if vec.is_empty() {
-                    callback("Please provide `Screenshots`.", &mut self.screenshots);
+                    let mut not_finished = callback("Please provide a Screenshot for `Screenshots`.", &mut self.screenshots);
+                    while not_finished {
+                        not_finished = callback("Provide another Screenshot for `Screenshots`.", &mut self.screenshots);
+                    }
                     continue;
                 }
             }
-            if let Data::Provides { ref mimetypes, ref binaries } = self.provides {
+            if let Provides { mimetypes: Data::MimeTypes(ref mimetypes), binaries: Data::Binaries(ref binaries) } = self.provides {
                 if mimetypes.is_empty() {
-                    callback("Please provide `mimetypes`.", &mut self.provides);
+                    callback("Please provide a mimetype for `mimetypes`.", &mut self.provides.mimetypes);
                     continue;
                 }
                 if binaries.is_empty() {
-                    callback("Please provide `binaries`.", &mut self.provides);
+                    callback("Please provide a binary for `binaries`.", &mut self.provides.binaries);
                     continue;
                 }
             }
